@@ -1,0 +1,17 @@
+[package]
+name = "native-drawer"
+version = "0.1.0"
+edition = "2024"
+path = "src"
+
+[dependencies]
+android_logger = "0.15.1"
+skia-safe = "0.88.0"
+log = "0.4.28"
+winit = { version = "0.30.12", features = [ "android-native-activity" ] }
+wgpu = { version = "26.0.1", default-features = false, features = [ "vulkan", "wgsl", "std", "parking_lot"]}
+pollster = "0.4.0"
+
+[lib]
+name="native_drawer"
+crate-type=["cdylib"]
