@@ -2,7 +2,6 @@
 name = "native-drawer"
 version = "0.1.0"
 edition = "2024"
-path = "src"
 
 [dependencies]
 android_logger = "0.15.1"

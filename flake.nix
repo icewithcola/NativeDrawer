@@ -1,8 +1,15 @@
 {
   description = "bundle environment for hook101";
 
-  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-  # inputs.nixpkgs.url = "https://mirrors.tencent.com/github.com/nixos/nixpkgs/archive/nixos-unstable.tar.gz";
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # nixpkgs.url = "https://mirrors.tencent.com/github.com/nixos/nixpkgs/archive/nixos-unstable.tar.gz";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
   outputs =
     inputs:
     let
@@ -21,7 +28,10 @@
           f {
             pkgs = import inputs.nixpkgs {
               inherit system;
-              overlays = [ inputs.self.overlays.default ];
+              overlays = [ 
+                inputs.self.overlays.default
+                inputs.rust-overlay.overlays.default
+                ];
               config.allowUnfree = true;
               config.android_sdk.accept_license = true;
             };
@@ -55,14 +65,21 @@
         };
       devShells = forEachSupportedSystem (
         { pkgs }:
+        let
+          rustPkgs = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        in 
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
               jdk
               androidSdk
               gradle
-              rustup
-              cargo-apk
+              rustPkgs
+              cargo
+              rustfmt
+              clippy
+              rust-analyzer
+              cargo-ndk
             ];
 
             JAVA_HOME = pkgs.jdk;
