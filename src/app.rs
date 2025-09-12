@@ -1,6 +1,9 @@
+use crate::user_input::InputHandler;
+use std::sync::Mutex;
 use std::time::Instant;
 use wgpu::{
-    ColorTargetState, ColorWrites, DeviceDescriptor, PipelineCompilationOptions, PresentMode, SurfaceConfiguration, TextureViewDescriptor
+    ColorTargetState, ColorWrites, DeviceDescriptor, PipelineCompilationOptions,
+    PresentMode, SurfaceConfiguration, TextureViewDescriptor,
 };
 use winit::dpi::PhysicalSize;
 use winit::{
@@ -13,10 +16,14 @@ use winit::{
 
 const SHADER: &str = r#"
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-    let x = f32(i32(in_vertex_index) - 1);
-    let y = f32(i32(in_vertex_index & 1u) * 2 - 1);
-    return vec4<f32>(x, y, 0.0, 1.0);
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4f {
+    const pos = array(
+        vec2( 0.0,  0.5),
+        vec2(-0.5, -0.5),
+        vec2( 0.5, -0.5)
+    );
+    
+    return vec4f(pos[vertex_index], 0, 1);
 }
 
 @fragment
@@ -36,14 +43,20 @@ struct SurfaceState {
 }
 
 struct App {
+    /// GPU state
     instance: wgpu::Instance,
-    renderer: Option<Renderer>,
-    surface_state: Option<SurfaceState>,
-    last_time: Instant,
     adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
+
+    /// Redendering state
+    renderer: Option<Renderer>,
+    surface_state: Option<SurfaceState>,
+    last_time: Instant,
+
+    /// App state
     size: PhysicalSize<u32>,
+    input_handler: &'static Mutex<InputHandler>,
 }
 
 impl App {
@@ -69,15 +82,19 @@ impl App {
             })
             .await
             .expect("Failed to create device");
+
         Self {
             instance,
             device,
             adapter,
             queue,
+
             renderer: None,
             surface_state: None,
             last_time: Instant::now(),
+
             size: PhysicalSize::new(0, 0),
+            input_handler: InputHandler::get(),
         }
     }
 
@@ -126,6 +143,13 @@ impl App {
             });
 
         self.renderer = Some(Renderer { render_pipeline });
+        self.input_handler
+            .lock()
+            .unwrap()
+            .register_handler(|dx, dy| {
+                log::info!("Get user input: dx = {}, dy = {}", dx, dy);
+
+            });
     }
 
     fn setup_swapchain(&mut self) {
@@ -251,6 +275,10 @@ impl ApplicationHandler<AndroidApp> for App {
             }
             WindowEvent::Resized(size) => {
                 self.resize(size);
+            }
+            WindowEvent::Touch(touch) => {
+                let mut input_handler = InputHandler::get().lock().unwrap();
+                input_handler.add_event(touch.clone());
             }
             _ => {}
         }

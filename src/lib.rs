@@ -1,6 +1,7 @@
 use winit::{event_loop::EventLoop, platform::android::activity::AndroidApp};
 
 mod app;
+mod user_input;
 
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
