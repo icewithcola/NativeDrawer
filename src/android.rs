@@ -2,6 +2,7 @@ use jni::{
     JNIEnv, JavaVM,
     objects::{GlobalRef, JObject, JValue},
 };
+use ndk::looper::ThreadLooper;
 
 #[derive(Debug)]
 pub struct AndroidEnv {
@@ -16,7 +17,7 @@ impl AndroidEnv {
     }
 
     pub fn show_toast(&self, message: &str) {
-        AndroidEnv::run_on_main_thread(|| {
+        self.run_on_main_thread(|| {
             let jni_env = &mut self.vm.get_env().unwrap();
             jni_env
                 .call_static_method(
@@ -35,24 +36,48 @@ impl AndroidEnv {
 
     /// JNI main thread is also rust main thread
     /// the thread is always called `native`
-    fn run_on_main_thread<F, R>(func: F)
+    fn run_on_main_thread<F, R>(&self, func: F)
     where
         F: Fn() -> R + Sized,
         R: Sized,
     {
+        let jni_env = &mut self.vm.get_env().unwrap();
+        let main_handler = self.get_main_handler();
+        let _closure_ptr: *mut F = Box::into_raw(Box::new(func));
+        
+        let runnable = jni_env
+            .new_object("java/lang/Runnable", "()V", &[])
+            .unwrap();
+        jni_env
+            .call_method(
+                main_handler,
+                "post",
+                "(Ljava/lang/Runnable;)Z",
+                &[JValue::Object(&runnable)],
+            )
+            .unwrap();
     }
 
-    // fn get_main_looper(&self) -> JObject {
-    //     let jni_env = &mut self.vm.get_env().unwrap();
-    //     jni_env
-    //         .call_static_method(
-    //             "android/os/Looper",
-    //             "getMainLooper",
-    //             "()Landroid/os/Looper;",
-    //             &[],
-    //         )
-    //         .unwrap()
-    //         .l()
-    //         .unwrap()
-    // }
+    /// Gets the main handler, this is required for running on the main thread
+    fn get_main_handler(&'_ self) -> JObject<'_> {
+        let jni_env = &mut self.vm.get_env().unwrap();
+        let main_looper = jni_env
+            .call_static_method(
+                "android/os/Looper",
+                "getMainLooper",
+                "()Landroid/os/Looper;",
+                &[],
+            )
+            .unwrap()
+            .l()
+            .unwrap();
+        let handler_class = jni_env.find_class("android/os/Handler").unwrap();
+        jni_env
+            .new_object(
+                handler_class,
+                "(Landroid/os/Looper;)V",
+                &[JValue::Object(&main_looper)],
+            )
+            .unwrap()
+    }
 }

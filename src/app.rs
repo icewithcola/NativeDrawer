@@ -1,7 +1,7 @@
 use crate::android::AndroidEnv;
 use crate::user_input::InputHandler;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use wgpu::{
     ColorTargetState, ColorWrites, DeviceDescriptor, PipelineCompilationOptions, PresentMode,
     SurfaceConfiguration, TextureViewDescriptor,
@@ -306,6 +306,7 @@ impl ApplicationHandler<AndroidApp> for App {
 pub fn run(event_loop: EventLoop<AndroidApp>, android_env: Option<AndroidEnv>) {
     let mut app = pollster::block_on(App::new(android_env));
 
+    log::info!("event loop started at {:?}", SystemTime::now().duration_since(UNIX_EPOCH).expect("cannot get system time"));
     let err = event_loop.run_app(&mut app).unwrap_err();
     log::error!("event loop error: {}", err);
 }
