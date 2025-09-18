@@ -15,44 +15,51 @@ impl AndroidEnv {
         AndroidEnv { vm, activity }
     }
 
-    pub fn show_toast(&self, message: &str) {
-        AndroidEnv::run_on_main_thread(|| {
-            let jni_env = &mut self.vm.get_env().unwrap();
-            jni_env
-                .call_static_method(
-                    "android/widget/Toast",
-                    "makeText",
-                    "(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;",
-                    &[
-                        JValue::Object(&self.activity),
-                        JValue::Object(&jni_env.new_string(message).unwrap()),
-                        JValue::Int(300),
-                    ],
-                )
-                .unwrap();
-        });
+    /// getSystemService
+    fn get_system_service(&'_ self, service_name: &str) -> Result<JObject<'_>, jni::errors::Error> {
+        let env = &mut self.vm.get_env().unwrap();
+        let binding = env.new_string(service_name).unwrap();
+        let service_name = JValue::Object(&binding);
+        Ok(env
+            .call_method(
+                self.activity.clone(),
+                "getSystemService",
+                "(Ljava/lang/String;)Ljava/lang/Object;",
+                &[service_name],
+            )?
+            .l()?)
     }
 
-    /// JNI main thread is also rust main thread
-    /// the thread is always called `native`
-    fn run_on_main_thread<F, R>(func: F)
-    where
-        F: Fn() -> R + Sized,
-        R: Sized,
-    {
-    }
+    /// vibrate
+    pub fn vibrate(&self, duration: i64) -> Result<(), jni::errors::Error> {
+        let env = &mut self.vm.get_env().unwrap();
+        let service = self.get_system_service("vibrator_manager")?;
 
-    // fn get_main_looper(&self) -> JObject {
-    //     let jni_env = &mut self.vm.get_env().unwrap();
-    //     jni_env
-    //         .call_static_method(
-    //             "android/os/Looper",
-    //             "getMainLooper",
-    //             "()Landroid/os/Looper;",
-    //             &[],
-    //         )
-    //         .unwrap()
-    //         .l()
-    //         .unwrap()
-    // }
+        let vibrator = env
+            .call_method(
+                service,
+                "getDefaultVibrator",
+                "()Landroid/os/Vibrator;",
+                &[],
+            )?
+            .l()?;
+
+        let vibration_effect = env
+            .call_static_method(
+                "android/os/VibrationEffect",
+                "createOneShot",
+                "(JI)Landroid/os/VibrationEffect;",
+                &[JValue::Long(duration), JValue::Int(-1)],
+            )?
+            .l()?;
+
+        env.call_method(
+            vibrator,
+            "vibrate",
+            "(Landroid/os/VibrationEffect;)V",
+            &[JValue::Object(&vibration_effect)],
+        )?;
+
+        Ok(())
+    }
 }

@@ -179,9 +179,12 @@ impl App {
                 log::info!("Get user input: dx = {}, dy = {}", dx, dy);
 
                 // Check swipe condition
-                if dx > 500.0 && dy.abs() < 25.0 {
+                if dx.abs() > 60.0 && dy.abs() < 50.0 {
                     if let Some(env) = &*android_env_clone.lock().unwrap() {
-                        env.show_toast("Hello from Rust!");
+                        match env.vibrate(250) {
+                            Ok(_) => log::info!("Vibration started successfully"),
+                            Err(e) => log::error!("Failed to start vibration: {}", e)
+                        }
                     }
                 }
             });
