@@ -1,9 +1,10 @@
+use crate::android::AndroidEnv;
 use crate::user_input::InputHandler;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use wgpu::{
-    ColorTargetState, ColorWrites, DeviceDescriptor, PipelineCompilationOptions,
-    PresentMode, SurfaceConfiguration, TextureViewDescriptor,
+    ColorTargetState, ColorWrites, DeviceDescriptor, PipelineCompilationOptions, PresentMode,
+    SurfaceConfiguration, TextureViewDescriptor,
 };
 use winit::dpi::PhysicalSize;
 use winit::{
@@ -57,10 +58,13 @@ struct App {
     /// App state
     size: PhysicalSize<u32>,
     input_handler: &'static Mutex<InputHandler>,
+
+    /// Android state
+    android_env: Arc<Mutex<Option<AndroidEnv>>>,
 }
 
 impl App {
-    async fn new() -> Self {
+    async fn new(android_env: Option<AndroidEnv>) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN,
             ..Default::default()
@@ -95,6 +99,8 @@ impl App {
 
             size: PhysicalSize::new(0, 0),
             input_handler: InputHandler::get(),
+
+            android_env: Arc::new(Mutex::new(android_env)),
         }
     }
 
@@ -143,13 +149,7 @@ impl App {
             });
 
         self.renderer = Some(Renderer { render_pipeline });
-        self.input_handler
-            .lock()
-            .unwrap()
-            .register_handler(|dx, dy| {
-                log::info!("Get user input: dx = {}, dy = {}", dx, dy);
-
-            });
+        self.setup_input_handler();
     }
 
     fn setup_swapchain(&mut self) {
@@ -167,6 +167,24 @@ impl App {
         surface_state
             .surface
             .configure(&self.device, &surface_configuration);
+    }
+
+    pub fn setup_input_handler(&self) {
+        let android_env_clone = self.android_env.clone();
+
+        self.input_handler
+            .lock()
+            .unwrap()
+            .register_handler(move |dx, dy| {
+                log::info!("Get user input: dx = {}, dy = {}", dx, dy);
+
+                // Check swipe condition
+                if dx > 500.0 && dy.abs() < 25.0 {
+                    if let Some(env) = &*android_env_clone.lock().unwrap() {
+                        env.show_toast("Hello from Rust!");
+                    }
+                }
+            });
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -285,8 +303,8 @@ impl ApplicationHandler<AndroidApp> for App {
     }
 }
 
-pub fn run(event_loop: EventLoop<AndroidApp>) {
-    let mut app = pollster::block_on(App::new());
+pub fn run(event_loop: EventLoop<AndroidApp>, android_env: Option<AndroidEnv>) {
+    let mut app = pollster::block_on(App::new(android_env));
 
     let err = event_loop.run_app(&mut app).unwrap_err();
     log::error!("event loop error: {}", err);
