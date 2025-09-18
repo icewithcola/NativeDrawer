@@ -10,6 +10,9 @@ log = "0.4.28"
 winit = { version = "0.30.12", features = [ "android-native-activity" ] }
 wgpu = { version = "26.0.1", default-features = false, features = [ "vulkan", "wgsl", "std", "parking_lot"]}
 pollster = "0.4.0"
+jni = "0.21.1"
+android-activity = { version = "0.6.0", features = [ "native-activity" ] }
+ndk = "0.9.0"
 
 [lib]
 name="native_drawer"
