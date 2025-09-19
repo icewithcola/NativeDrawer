@@ -181,10 +181,9 @@ impl App {
                 // Check swipe condition
                 if dx.abs() > 60.0 && dy.abs() < 50.0 {
                     if let Some(env) = &*android_env_clone.lock().unwrap() {
-                        match env.vibrate(250) {
-                            Ok(_) => log::info!("Vibration started successfully"),
-                            Err(e) => log::error!("Failed to start vibration: {}", e)
-                        }
+                        AndroidEnv::call_method(||{
+                            env.vibrate(200)
+                        });
                     }
                 }
             });

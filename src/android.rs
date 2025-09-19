@@ -3,6 +3,9 @@ use jni::{
     objects::{GlobalRef, JObject, JValue},
 };
 
+/// Android environment holder
+/// 
+/// This holds the JavaVM and the activity, very useful for JNI calls
 #[derive(Debug)]
 pub struct AndroidEnv {
     vm: JavaVM,
@@ -15,7 +18,36 @@ impl AndroidEnv {
         AndroidEnv { vm, activity }
     }
 
-    /// getSystemService
+    /// Call method wrapped with error logging, None will be returned on error
+    /// 
+    /// Example:
+    /// ```
+    /// let result = AndroidEnv.call_method(|| {
+    ///     env.vibrate(1000)
+    /// });
+    /// ```
+    pub fn call_method<T>(fun: impl Fn() -> Result<T, jni::errors::Error>) -> Option<T>
+    where
+        T: Sized,
+    {
+        let result = fun();
+        match result {
+            Ok(value) => Some(value),
+            Err(e) => {
+                log::error!("error occurred while calling method, error: {:?}", e);
+                None
+            },
+        }
+    }
+
+    /// Get system service, see <https://developer.android.com/reference/android/app/Activity#getSystemService(java.lang.String)>
+    /// 
+    /// Possible service names, see the link above
+    /// 
+    /// Example:
+    /// ```
+    /// let service = AndroidEnv.get_system_service("vibrator_manager")?;
+    /// ```
     fn get_system_service(&'_ self, service_name: &str) -> Result<JObject<'_>, jni::errors::Error> {
         let env = &mut self.vm.get_env().unwrap();
         let binding = env.new_string(service_name).unwrap();
@@ -30,7 +62,12 @@ impl AndroidEnv {
             .l()?)
     }
 
-    /// vibrate
+    /// Vibrate your phone, uses vibrator manager
+    /// 
+    /// Example:
+    /// ```
+    /// env.vibrate(1000);
+    /// ```
     pub fn vibrate(&self, duration: i64) -> Result<(), jni::errors::Error> {
         let env = &mut self.vm.get_env().unwrap();
         let service = self.get_system_service("vibrator_manager")?;

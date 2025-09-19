@@ -7,6 +7,10 @@ mod android;
 mod app;
 mod user_input;
 
+
+/// The entry point of the application.
+/// 
+/// Never mangle or call this function, android will call it.
 #[unsafe(no_mangle)]
 fn android_main(app: AndroidApp) {
     use winit::platform::android::EventLoopBuilderExtAndroid;
